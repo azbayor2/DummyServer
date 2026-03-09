@@ -30,3 +30,7 @@ export async function getFromPython(req, res) {
   if (!pythonRes) return res.status(400).json({ error: "internal error" });
   return res.status(201).json(pythonRes.data);
 }
+
+export async function health(req, res) {
+  return res.status(200).end();
+}
