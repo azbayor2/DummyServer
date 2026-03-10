@@ -1,0 +1,166 @@
+.app {
+  min-height: 100vh;
+  background: #0f0f0f;
+  color: #e0e0e0;
+}
+
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  height: 60px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.logo {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #646cff;
+  margin: 0;
+}
+
+.nav-links {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nav-links a {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  text-decoration: none;
+  color: #a0a0a0;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.nav-links a:hover {
+  color: #e0e0e0;
+  background: #2a2a2a;
+}
+
+.nav-links a.active {
+  color: #fff;
+  background: #646cff;
+}
+
+.content {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.page h2 {
+  margin-bottom: 0.25rem;
+}
+
+.description {
+  color: #888;
+  font-size: 0.85rem;
+  margin-bottom: 1.5rem;
+  font-family: monospace;
+}
+
+button {
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 6px;
+  background: #646cff;
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+button:hover {
+  background: #535bf2;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-small {
+  padding: 0.3rem 0.8rem;
+  font-size: 0.8rem;
+}
+
+.error {
+  color: #ff6b6b;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: rgba(255, 107, 107, 0.1);
+  border-radius: 6px;
+}
+
+.result {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 0.85rem;
+}
+
+.form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.form input {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  background: #1a1a1a;
+  color: #e0e0e0;
+  font-size: 0.9rem;
+}
+
+.form input:focus {
+  outline: none;
+  border-color: #646cff;
+}
+
+.list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.list-header h3 {
+  margin: 0;
+}
+
+.empty {
+  color: #666;
+  text-align: center;
+  padding: 2rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 0.6rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+th {
+  color: #888;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+tr:hover td {
+  background: #1a1a1a;
+}
