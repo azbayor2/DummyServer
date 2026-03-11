@@ -7,7 +7,7 @@ dotenv.config();
 
 const app = express();
 app.use(json());
-app.use("/", router);
+app.use("/api", router);
 
 app.listen("7777", () => {
   console.log("listening on port 7777");
