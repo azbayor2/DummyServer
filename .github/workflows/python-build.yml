@@ -1,4 +1,4 @@
-name: Build and Push Python Image
+name: Build and Deploy Python
 
 on:
   release:
@@ -7,6 +7,9 @@ on:
 permissions:
   id-token: write
   contents: read
+
+env:
+  AWS_REGION: ap-northeast-2
 
 jobs:
   build-and-push:
@@ -21,7 +24,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ARN }}
-          aws-region: ap-northeast-2
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
@@ -34,3 +37,40 @@ jobs:
           tags: |
             ${{ secrets.AWS_ECR_PYTHON }}:${{ github.event.release.tag_name }}
             ${{ secrets.AWS_ECR_PYTHON }}:latest
+
+      - name: Update ECS task definition
+        id: update-task
+        run: |
+          NEW_TASK_DEF=$(aws ecs describe-task-definition \
+            --task-definition ${{ secrets.ECS_PYTHON_TASK_DEFINITION }} \
+            --query 'taskDefinition' \
+            --output json \
+            --region ${{ env.AWS_REGION }} | \
+            jq --arg IMAGE "${{ secrets.AWS_ECR_PYTHON }}:${{ github.event.release.tag_name }}" \
+            '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+
+          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json "$NEW_TASK_DEF" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text \
+            --region ${{ env.AWS_REGION }})
+
+          echo "task_definition_arn=$NEW_TASK_DEF_ARN" >> $GITHUB_OUTPUT
+
+      - name: Deploy to ECS service
+        run: |
+          aws ecs update-service \
+            --cluster ${{ secrets.ECS_CLUSTER_NAME }} \
+            --service ${{ secrets.ECS_PYTHON_SERVICE_NAME }} \
+            --task-definition ${{ steps.update-task.outputs.task_definition_arn }} \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+          echo "Deployment started. Waiting for service to stabilize..."
+
+          aws ecs wait services-stable \
+            --cluster ${{ secrets.ECS_CLUSTER_NAME }} \
+            --services ${{ secrets.ECS_PYTHON_SERVICE_NAME }} \
+            --region ${{ env.AWS_REGION }}
+
+          echo "Deployment completed successfully"

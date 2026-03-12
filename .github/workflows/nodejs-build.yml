@@ -1,4 +1,4 @@
-name: Build and Push Node.js Image
+name: Build and Deploy Node.js
 
 on:
   release:
@@ -7,6 +7,9 @@ on:
 permissions:
   id-token: write
   contents: read
+
+env:
+  AWS_REGION: ap-northeast-2
 
 jobs:
   build-and-push:
@@ -21,7 +24,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_IAM_ARN }}
-          aws-region: ap-northeast-2
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
@@ -34,3 +37,84 @@ jobs:
           tags: |
             ${{ secrets.AWS_ECR_NODEJS }}:${{ github.event.release.tag_name }}
             ${{ secrets.AWS_ECR_NODEJS }}:latest
+
+      - name: Run database migration task
+        run: |
+          TASK_ARN=$(aws ecs run-task \
+            --cluster ${{ secrets.ECS_CLUSTER_NAME }} \
+            --task-definition ${{ secrets.ECS_MIGRATION_TASK_DEFINITION }} \
+            --launch-type FARGATE \
+            --network-configuration '{
+              "awsvpcConfiguration": {
+                "subnets": ${{ secrets.ECS_SUBNETS }},
+                "securityGroups": ${{ secrets.ECS_SECURITY_GROUPS }},
+                "assignPublicIp": "DISABLED"
+              }
+            }' \
+            --overrides '{
+              "containerOverrides": [{
+                "name": "${{ secrets.ECS_MIGRATION_CONTAINER_NAME }}",
+                "command": ["npx", "sequelize-cli", "db:migrate"]
+              }]
+            }' \
+            --query 'tasks[0].taskArn' \
+            --output text \
+            --region ${{ env.AWS_REGION }})
+
+          echo "Migration task started: $TASK_ARN"
+
+          aws ecs wait tasks-stopped \
+            --cluster ${{ secrets.ECS_CLUSTER_NAME }} \
+            --tasks "$TASK_ARN" \
+            --region ${{ env.AWS_REGION }}
+
+          EXIT_CODE=$(aws ecs describe-tasks \
+            --cluster ${{ secrets.ECS_CLUSTER_NAME }} \
+            --tasks "$TASK_ARN" \
+            --query 'tasks[0].containers[0].exitCode' \
+            --output text \
+            --region ${{ env.AWS_REGION }})
+
+          if [ "$EXIT_CODE" != "0" ]; then
+            echo "Migration failed with exit code: $EXIT_CODE"
+            exit 1
+          fi
+
+          echo "Migration completed successfully"
+
+      - name: Update ECS task definition
+        id: update-task
+        run: |
+          NEW_TASK_DEF=$(aws ecs describe-task-definition \
+            --task-definition ${{ secrets.ECS_NODEJS_TASK_DEFINITION }} \
+            --query 'taskDefinition' \
+            --output json \
+            --region ${{ env.AWS_REGION }} | \
+            jq --arg IMAGE "${{ secrets.AWS_ECR_NODEJS }}:${{ github.event.release.tag_name }}" \
+            '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+
+          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json "$NEW_TASK_DEF" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text \
+            --region ${{ env.AWS_REGION }})
+
+          echo "task_definition_arn=$NEW_TASK_DEF_ARN" >> $GITHUB_OUTPUT
+
+      - name: Deploy to ECS service
+        run: |
+          aws ecs update-service \
+            --cluster ${{ secrets.ECS_CLUSTER_NAME }} \
+            --service ${{ secrets.ECS_NODEJS_SERVICE_NAME }} \
+            --task-definition ${{ steps.update-task.outputs.task_definition_arn }} \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+          echo "Deployment started. Waiting for service to stabilize..."
+
+          aws ecs wait services-stable \
+            --cluster ${{ secrets.ECS_CLUSTER_NAME }} \
+            --services ${{ secrets.ECS_NODEJS_SERVICE_NAME }} \
+            --region ${{ env.AWS_REGION }}
+
+          echo "Deployment completed successfully"
