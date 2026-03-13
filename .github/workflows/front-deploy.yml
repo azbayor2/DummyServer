@@ -30,7 +30,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./front
-        run: yarn intall
+        run: yarn install
 
       - name: Build
         working-directory: ./front
