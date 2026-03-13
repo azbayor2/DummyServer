@@ -164,3 +164,11 @@ th {
 tr:hover td {
   background: #1a1a1a;
 }
+
+.btn-danger {
+  background: #e53e3e;
+}
+
+.btn-danger:hover {
+  background: #c53030;
+}

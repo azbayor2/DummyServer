@@ -28,6 +28,10 @@ jobs:
         working-directory: ./front
         run: npm install
 
+      - name: Install dependencies
+        working-directory: ./front
+        run: yarn intall
+
       - name: Build
         working-directory: ./front
         run: npm run build

@@ -62,3 +62,30 @@ export async function getFromPython(req, res) {
 export async function health(req, res) {
   return res.status(200).end();
 }
+
+export async function getUsers(req, res) {
+  const query = await models.User.findAll({ order: [["id", "DESC"]] });
+  return res.status(200).json(query);
+}
+
+export async function createUser(req, res) {
+  const { name, email } = req.body;
+
+  if (!name || !email) {
+    return res.status(400).json({ error: "name and email are required" });
+  }
+
+  const user = await models.User.create({ name, email });
+  return res.status(201).json(user);
+}
+
+export async function deleteUser(req, res) {
+  const { id } = req.params;
+  const deleted = await models.User.destroy({ where: { id } });
+
+  if (!deleted) {
+    return res.status(404).json({ error: "user not found" });
+  }
+
+  return res.status(200).json({ message: "deleted" });
+}

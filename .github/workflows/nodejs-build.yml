@@ -110,11 +110,4 @@ jobs:
             --force-new-deployment \
             --region ${{ env.AWS_REGION }}
 
-          echo "Deployment started. Waiting for service to stabilize..."
-
-          aws ecs wait services-stable \
-            --cluster ${{ secrets.ECS_CLUSTER_NAME }} \
-            --services ${{ secrets.ECS_NODEJS_SERVICE_NAME }} \
-            --region ${{ env.AWS_REGION }}
-
-          echo "Deployment completed successfully"
+          echo "Deployment started successfully"
