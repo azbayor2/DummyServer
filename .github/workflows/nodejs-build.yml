@@ -38,11 +38,30 @@ jobs:
             ${{ secrets.AWS_ECR_NODEJS }}:${{ github.event.release.tag_name }}
             ${{ secrets.AWS_ECR_NODEJS }}:latest
 
+      - name: Update migration task image
+        id: update-migration-task
+        run: |
+          NEW_TASK_DEF=$(aws ecs describe-task-definition \
+            --task-definition ${{ secrets.ECS_MIGRATION_TASK_DEFINITION }} \
+            --query 'taskDefinition' \
+            --output json \
+            --region ${{ env.AWS_REGION }} | \
+            jq --arg IMAGE "${{ secrets.AWS_ECR_NODEJS }}:${{ github.event.release.tag_name }}" \
+            '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+
+          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json "$NEW_TASK_DEF" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text \
+            --region ${{ env.AWS_REGION }})
+
+          echo "task_definition_arn=$NEW_TASK_DEF_ARN" >> $GITHUB_OUTPUT
+
       - name: Run database migration task
         run: |
           TASK_ARN=$(aws ecs run-task \
             --cluster ${{ secrets.ECS_CLUSTER_NAME }} \
-            --task-definition ${{ secrets.ECS_MIGRATION_TASK_DEFINITION }} \
+            --task-definition ${{ steps.update-migration-task.outputs.task_definition_arn }} \
             --launch-type FARGATE \
             --network-configuration '{
               "awsvpcConfiguration": {
@@ -50,12 +69,6 @@ jobs:
                 "securityGroups": ${{ secrets.ECS_SECURITY_GROUPS }},
                 "assignPublicIp": "DISABLED"
               }
-            }' \
-            --overrides '{
-              "containerOverrides": [{
-                "name": "${{ secrets.ECS_MIGRATION_CONTAINER_NAME }}",
-                "command": ["npx", "sequelize-cli", "db:migrate"]
-              }]
             }' \
             --query 'tasks[0].taskArn' \
             --output text \
